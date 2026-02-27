@@ -1,0 +1,380 @@
+<?php
+session_start();
+
+/* =========================
+   SIMPLE DATABASE (JSON)
+========================= */
+$file = "appointments.json";
+if(!file_exists($file)){
+    file_put_contents($file, json_encode([]));
+}
+
+/* ===== LOGIN ===== */
+if(isset($_POST['login'])){
+    if($_POST['user']=="admin" && $_POST['pass']=="1234"){
+        $_SESSION['admin']=true;
+    }
+}
+
+/* ===== LOGOUT ===== */
+if(isset($_GET['logout'])){
+    session_destroy();
+    header("Location:index.php");
+}
+
+/* ===== SAVE APPOINTMENT ===== */
+if(isset($_POST['book'])){
+    $data=json_decode(file_get_contents($file),true);
+
+    $new=[
+        "name"=>$_POST['name'],
+        "phone"=>$_POST['phone'],
+        "email"=>$_POST['email'],
+        "symptoms"=>$_POST['symptoms'],
+        "date"=>$_POST['date'],
+        "time"=>$_POST['time'],
+        "status"=>"Pending"
+    ];
+
+    $data[]=$new;
+    file_put_contents($file,json_encode($data));
+}
+
+/* ===== UPDATE STATUS ===== */
+if(isset($_GET['approve'])){
+    $data=json_decode(file_get_contents($file),true);
+    $data[$_GET['approve']]['status']="Approved";
+    file_put_contents($file,json_encode($data));
+}
+if(isset($_GET['reject'])){
+    $data=json_decode(file_get_contents($file),true);
+    $data[$_GET['reject']]['status']="Rejected";
+    file_put_contents($file,json_encode($data));
+}
+
+$appointments=json_decode(file_get_contents($file),true);
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Premium Doctor Website</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+
+/* =====================
+   GLOBAL STYLE
+===================== */
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#02111f,#041f33);
+color:white;
+overflow-x:hidden;
+}
+
+section{padding:80px 20px;text-align:center;}
+
+h1,h2{font-weight:300;letter-spacing:1px;}
+
+.glass{
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(15px);
+border:1px solid rgba(255,255,255,0.2);
+border-radius:15px;
+}
+
+/* =====================
+   NAVBAR
+===================== */
+nav{
+position:fixed;
+top:0;width:100%;
+display:flex;
+justify-content:space-between;
+padding:15px 30px;
+background:rgba(0,0,0,0.3);
+backdrop-filter:blur(10px);
+z-index:10;
+}
+
+nav a{
+color:white;
+text-decoration:none;
+margin:0 10px;
+position:relative;
+}
+
+nav a:after{
+content:"";
+position:absolute;
+bottom:-5px;
+left:0;width:0;height:2px;
+background:cyan;
+transition:.4s;
+}
+nav a:hover:after{width:100%;}
+
+/* =====================
+   BUTTONS
+===================== */
+.btn{
+padding:12px 25px;
+border:2px solid cyan;
+background:transparent;
+color:white;
+border-radius:30px;
+cursor:pointer;
+transition:.3s;
+position:relative;
+overflow:hidden;
+}
+
+.btn:hover{
+box-shadow:0 0 20px cyan;
+transform:translateY(-3px);
+}
+
+.btn:active{
+transform:scale(.95);
+}
+
+/* =====================
+   HERO
+===================== */
+#hero{
+height:100vh;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+}
+
+canvas{
+position:absolute;
+top:0;left:0;
+z-index:-1;
+}
+
+/* =====================
+   CARDS
+===================== */
+.cards{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:20px;
+}
+
+.card{
+width:260px;
+padding:25px;
+transition:.4s;
+}
+
+.card:hover{
+transform:rotateY(10deg) translateY(-10px);
+box-shadow:0 0 30px cyan;
+}
+
+/* =====================
+   FORM
+===================== */
+input,textarea{
+width:90%;
+padding:12px;
+margin:10px;
+background:#02111f;
+border:1px solid cyan;
+color:white;
+border-radius:8px;
+}
+
+/* =====================
+   TABLE
+===================== */
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+td,th{
+border:1px solid rgba(255,255,255,.2);
+padding:10px;
+}
+
+/* =====================
+   MOBILE
+===================== */
+@media(max-width:768px){
+.cards{flex-direction:column;align-items:center;}
+}
+
+</style>
+</head>
+
+<body>
+
+<nav>
+<div>🩺 DoctorCare</div>
+<div>
+<a href="#hero">Home</a>
+<a href="#services">Services</a>
+<a href="#book">Appointment</a>
+<a href="#admin">Admin</a>
+</div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<section id="hero">
+<h1 id="typing"></h1>
+<p>Premium Healthcare Experience</p>
+<button class="btn" onclick="scrollToSection()">Book Appointment</button>
+</section>
+
+<!-- ================= SERVICES ================= -->
+<section id="services">
+<h2>Our Services</h2>
+<div class="cards">
+<div class="card glass">Cardiology</div>
+<div class="card glass">General Consultation</div>
+<div class="card glass">Diabetes Management</div>
+<div class="card glass">Emergency Care</div>
+</div>
+</section>
+
+<!-- ================= BOOKING ================= -->
+<section id="book">
+<h2>Book Appointment</h2>
+
+<form method="POST" class="glass">
+<input name="name" placeholder="Name" required>
+<input name="phone" placeholder="Phone" required>
+<input name="email" placeholder="Email" required>
+<textarea name="symptoms" placeholder="Symptoms"></textarea>
+<input type="date" name="date" required>
+<input type="time" name="time" required>
+<br>
+<button class="btn" name="book">Confirm Booking</button>
+</form>
+
+</section>
+
+<!-- ================= ADMIN ================= -->
+<section id="admin">
+<h2>Admin Dashboard</h2>
+
+<?php if(!isset($_SESSION['admin'])){ ?>
+
+<form method="POST" class="glass">
+<input name="user" placeholder="Username">
+<input type="password" name="pass" placeholder="Password">
+<button class="btn" name="login">Login</button>
+</form>
+
+<?php } else { ?>
+
+<a class="btn" href="?logout=1">Logout</a>
+
+<table class="glass">
+<tr>
+<th>Name</th>
+<th>Date</th>
+<th>Time</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+
+<?php foreach($appointments as $i=>$a){ ?>
+<tr>
+<td><?= $a['name'] ?></td>
+<td><?= $a['date'] ?></td>
+<td><?= $a['time'] ?></td>
+<td><?= $a['status'] ?></td>
+<td>
+<a class="btn" href="?approve=<?=$i?>">Approve</a>
+<a class="btn" href="?reject=<?=$i?>">Reject</a>
+</td>
+</tr>
+<?php } ?>
+
+</table>
+
+<?php } ?>
+</section>
+
+<script>
+
+/* =========================
+   TYPING EFFECT
+========================= */
+const text="Advanced 3D Doctor Experience";
+let i=0;
+function type(){
+if(i<text.length){
+document.getElementById("typing").innerHTML+=text.charAt(i);
+i++;
+setTimeout(type,60);
+}}
+type();
+
+/* =========================
+   SMOOTH SCROLL
+========================= */
+function scrollToSection(){
+document.getElementById("book")
+.scrollIntoView({behavior:"smooth"});
+}
+
+/* =========================
+   THREE JS HERO
+========================= */
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+
+const renderer=new THREE.WebGLRenderer({alpha:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const geometry=new THREE.SphereGeometry(1,32,32);
+const material=new THREE.MeshBasicMaterial({wireframe:true});
+const sphere=new THREE.Mesh(geometry,material);
+
+scene.add(sphere);
+camera.position.z=3;
+
+function animate(){
+requestAnimationFrame(animate);
+sphere.rotation.x+=0.003;
+sphere.rotation.y+=0.004;
+renderer.render(scene,camera);
+}
+animate();
+
+/* =========================
+   SCROLL REVEAL
+========================= */
+const observer=new IntersectionObserver(entries=>{
+entries.forEach(e=>{
+if(e.isIntersecting){
+e.target.style.opacity=1;
+e.target.style.transform="translateY(0)";
+}
+});
+});
+
+document.querySelectorAll("section").forEach(sec=>{
+sec.style.opacity=0;
+sec.style.transform="translateY(60px)";
+sec.style.transition="1s";
+observer.observe(sec);
+});
+
+</script>
+
+</body>
+  </html>
